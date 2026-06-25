@@ -5,13 +5,13 @@ from app.config import settings
 
 
 def get_async_url(url: str) -> str:
-    """Convert postgres:// URL to postgresql+asyncpg:// for SQLAlchemy async."""
+    """Convert database URL to async-compatible format."""
+    if url.startswith("sqlite"):
+        return url.replace("sqlite://", "sqlite+aiosqlite://", 1) if "aiosqlite" not in url else url
     if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
-    elif url.startswith("postgresql://"):
-        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    elif not url.startswith("postgresql+asyncpg://"):
-        url = "postgresql+asyncpg://" + url
+        return url.replace("postgres://", "postgresql+asyncpg://", 1)
+    if url.startswith("postgresql://") and "asyncpg" not in url:
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
     return url
 
 

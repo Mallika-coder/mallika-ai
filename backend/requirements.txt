@@ -1,53 +1,53 @@
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-websockets==12.0
-python-multipart==0.0.6
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-pydantic==2.5.3
-pydantic-settings==2.1.0
+fastapi
+uvicorn[standard]
+websockets
+python-multipart
+python-jose[cryptography]
+passlib[bcrypt]
+pydantic
+pydantic-settings
 
 # Database
-sqlalchemy[asyncio]==2.0.25
-asyncpg==0.29.0
-psycopg2-binary==2.9.9
-alembic==1.13.1
-greenlet==3.0.3
+sqlalchemy[asyncio]
+asyncpg
+psycopg2-binary
+alembic
+greenlet
+aiosqlite
 
-# Redis
-redis==5.0.1
-celery==5.3.6
+# Redis (optional)
+redis
+celery
 
 # LLM Providers
-openai==1.12.0
-anthropic==0.18.1
-ollama==0.1.6
-langchain==0.1.6
-langchain-openai==0.0.5
-langchain-community==0.0.17
-langgraph==0.0.20
+openai
+anthropic
+ollama
+
+# LangChain
+langchain
+langchain-openai
+langchain-community
 
 # Vector DB
-chromadb==0.4.22
-pinecone-client==3.0.0
+chromadb
 
 # File Processing
-PyPDF2==3.0.1
-python-docx==1.1.0
-python-pptx==0.6.23
-openpyxl==3.1.2
-pandas==2.2.0
-Pillow==10.2.0
-pytesseract==0.3.10
-reportlab==4.0.9
+PyPDF2
+python-docx
+python-pptx
+openpyxl
+pandas
+Pillow
+pytesseract
+reportlab
 
 # Search
-tavily-python==0.3.1
-duckduckgo-search==4.4.3
+tavily-python
+duckduckgo-search
 
 # Utilities
-httpx==0.26.0
-aiofiles==23.2.1
-python-magic==0.4.27
-tiktoken==0.5.2
-numpy==1.26.3
+httpx
+aiofiles
+tiktoken
+numpy

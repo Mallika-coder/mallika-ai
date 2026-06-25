@@ -1,0 +1,73 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - mallika-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./frontend/.env.local
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    networks:
+      - mallika-net
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mallika
+      POSTGRES_PASSWORD: mallika_secret
+      POSTGRES_DB: mallika_ai
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - mallika-net
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    networks:
+      - mallika-net
+
+  sandbox:
+    build:
+      context: ./backend/sandbox
+      dockerfile: Dockerfile.sandbox
+    networks:
+      - mallika-net
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  mallika-net:
+    driver: bridge

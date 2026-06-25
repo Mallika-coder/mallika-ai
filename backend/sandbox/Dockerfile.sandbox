@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+RUN pip install --no-cache-dir \
+    numpy \
+    pandas \
+    matplotlib \
+    scipy \
+    sympy \
+    requests
+
+RUN useradd -m sandbox
+USER sandbox
+WORKDIR /code
+
+CMD ["python", "/code/script.py"]

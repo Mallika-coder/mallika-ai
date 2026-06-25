@@ -2,8 +2,10 @@ services:
   - type: web
     name: mallika-ai-backend
     runtime: python
-    buildCommand: cd backend && pip install -r requirements.txt
-    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
     envVars:
       - key: GROQ_API_KEY
         sync: false
@@ -21,8 +23,14 @@ services:
         generateValue: true
       - key: APP_ENV
         value: production
+      - key: DEBUG
+        value: "false"
       - key: CORS_ORIGINS
-        value: https://frontend-fbnsxsy53-web-booster12.vercel.app,chrome-extension://*
+        value: "*"
+      - key: UPLOAD_DIR
+        value: /tmp/uploads
+      - key: CHROMA_PERSIST_DIR
+        value: /tmp/vectorstores
 
 databases:
   - name: mallika-db

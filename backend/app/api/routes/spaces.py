@@ -1,28 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models.database import get_db
 from app.models.user import User
-from app.models.space import Space, SpaceFile
+from app.models.space import Space
 from app.dependencies import get_current_user
-from app.rag.retriever import SpaceManager
 
 router = APIRouter()
-space_manager = SpaceManager()
 
 
 class CreateSpaceRequest(BaseModel):
     name: str
     description: Optional[str] = None
     icon: Optional[str] = None
-
-
-class QuerySpaceRequest(BaseModel):
-    question: str
-    top_k: int = 5
 
 
 @router.get("/")
@@ -62,47 +55,6 @@ async def create_space(
     await db.commit()
     await db.refresh(space)
     return {"id": space.id, "name": space.name}
-
-
-@router.post("/{space_id}/upload")
-async def upload_to_space(
-    space_id: str,
-    file: UploadFile = File(...),
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Space).where(Space.id == space_id, Space.user_id == user.id)
-    )
-    space = result.scalar_one_or_none()
-    if not space:
-        raise HTTPException(status_code=404, detail="Space not found")
-
-    content = await file.read()
-    text_content = content.decode("utf-8", errors="replace")
-
-    metadata = {"file_name": file.filename, "space_id": space_id}
-    chunks_count = await space_manager.add_file_to_space(space_id, text_content, metadata)
-
-    return {"status": "uploaded", "chunks": chunks_count, "filename": file.filename}
-
-
-@router.post("/{space_id}/query")
-async def query_space(
-    space_id: str,
-    request: QuerySpaceRequest,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Space).where(Space.id == space_id, Space.user_id == user.id)
-    )
-    space = result.scalar_one_or_none()
-    if not space:
-        raise HTTPException(status_code=404, detail="Space not found")
-
-    results = await space_manager.query_space(space_id, request.question, request.top_k)
-    return {"results": results}
 
 
 @router.delete("/{space_id}")

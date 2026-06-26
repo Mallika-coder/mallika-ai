@@ -9,46 +9,18 @@ pydantic-settings
 
 # Database
 sqlalchemy[asyncio]
-asyncpg
-psycopg2-binary
-alembic
-greenlet
 aiosqlite
-
-# Redis (optional)
-redis
-celery
+greenlet
 
 # LLM Providers
 openai
 anthropic
-ollama
-
-# LangChain
-langchain-core
-langchain-openai
-langchain-community
-langchain-text-splitters
-
-# Vector DB
-chromadb
-
-# File Processing
-PyPDF2
-python-docx
-python-pptx
-openpyxl
-pandas
-Pillow
-pytesseract
-reportlab
+httpx
 
 # Search
-tavily-python
 duckduckgo-search
 
 # Utilities
-httpx
 aiofiles
 tiktoken
 numpy

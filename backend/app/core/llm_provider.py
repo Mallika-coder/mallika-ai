@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import AsyncGenerator, List, Dict, Any
 import openai
 import anthropic
-from ollama import AsyncClient as OllamaClient
 
 from app.config import settings
 
@@ -144,27 +143,6 @@ class GroqProvider(BaseLLMProvider):
         return response.data[0].embedding
 
 
-class OllamaProvider(BaseLLMProvider):
-    def __init__(self, model: str = "llama3:8b"):
-        self.client = OllamaClient(host=settings.ollama_base_url)
-        self.model = model
-
-    async def generate(self, messages, tools=None, stream=True):
-        response = await self.client.chat(
-            model=self.model, messages=messages, stream=stream
-        )
-        if stream:
-            async for chunk in response:
-                if chunk["message"]["content"]:
-                    yield {"type": "text", "content": chunk["message"]["content"]}
-        else:
-            yield {"type": "complete", "content": response["message"]["content"]}
-
-    async def generate_embeddings(self, text):
-        response = await self.client.embeddings(model="nomic-embed-text", prompt=text)
-        return response["embedding"]
-
-
 class LLMProviderFactory:
     @staticmethod
     def create(provider: str, model: str = None) -> BaseLLMProvider:
@@ -172,8 +150,7 @@ class LLMProviderFactory:
             "openai": lambda m: OpenAIProvider(m or "gpt-4o"),
             "anthropic": lambda m: AnthropicProvider(m or "claude-sonnet-4-20250514"),
             "groq": lambda m: GroqProvider(m or "llama-3.1-70b-versatile"),
-            "ollama": lambda m: OllamaProvider(m or "llama3:8b"),
         }
         if provider not in providers:
-            raise ValueError(f"Unknown provider: {provider}")
+            raise ValueError(f"Unknown provider: {provider}. Available: {list(providers.keys())}")
         return providers[provider](model)

@@ -74,39 +74,60 @@ class AgentExecutor:
             tool_calls = []
             current_tool_call = None
 
-            async for chunk in self.llm.generate(
-                messages,
-                tools=self.get_tool_schemas(),
-                stream=True,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                top_p=self.top_p,
-            ):
-                if chunk["type"] == "text":
-                    full_response += chunk["content"]
-                    yield {"type": "stream", "content": chunk["content"]}
-                elif chunk["type"] == "tool_call":
-                    for tc in chunk["content"]:
-                        if hasattr(tc, "id") and tc.id:
-                            current_tool_call = {
-                                "id": tc.id,
-                                "function": {
-                                    "name": tc.function.name if hasattr(tc, "function") else "",
-                                    "arguments": "",
-                                },
-                            }
-                            tool_calls.append(current_tool_call)
-                        elif current_tool_call and hasattr(tc, "function"):
-                            if tc.function.name:
-                                current_tool_call["function"]["name"] = tc.function.name
-                            if tc.function.arguments:
-                                current_tool_call["function"]["arguments"] += tc.function.arguments
-                        elif isinstance(tc, dict):
-                            tool_calls.append(tc)
-                elif chunk["type"] == "usage":
-                    usage = chunk["content"]
-                    self.total_tokens_used += usage.get("total_tokens", 0)
-                    yield {"type": "token_usage", "usage": usage}
+            try:
+                async for chunk in self.llm.generate(
+                    messages,
+                    tools=self.get_tool_schemas(),
+                    stream=True,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    top_p=self.top_p,
+                ):
+                    if chunk["type"] == "text":
+                        full_response += chunk["content"]
+                        yield {"type": "stream", "content": chunk["content"]}
+                    elif chunk["type"] == "tool_call":
+                        for tc in chunk["content"]:
+                            if hasattr(tc, "id") and tc.id:
+                                current_tool_call = {
+                                    "id": tc.id,
+                                    "function": {
+                                        "name": tc.function.name if hasattr(tc, "function") else "",
+                                        "arguments": "",
+                                    },
+                                }
+                                tool_calls.append(current_tool_call)
+                            elif current_tool_call and hasattr(tc, "function"):
+                                if tc.function.name:
+                                    current_tool_call["function"]["name"] = tc.function.name
+                                if tc.function.arguments:
+                                    current_tool_call["function"]["arguments"] += tc.function.arguments
+                            elif isinstance(tc, dict):
+                                tool_calls.append(tc)
+                    elif chunk["type"] == "usage":
+                        usage = chunk["content"]
+                        self.total_tokens_used += usage.get("total_tokens", 0)
+                        yield {"type": "token_usage", "usage": usage}
+            except Exception as e:
+                error_msg = str(e)
+                if "failed_generation" in error_msg or "Failed to call a function" in error_msg:
+                    if full_response:
+                        yield {"type": "stream", "content": "\n\n*(Tool calling failed — responding without tools)*\n\n"}
+                    # Retry without tools
+                    try:
+                        async for chunk in self.llm.generate(
+                            messages, tools=None, stream=True,
+                            temperature=self.temperature, max_tokens=self.max_tokens, top_p=self.top_p,
+                        ):
+                            if chunk["type"] == "text":
+                                full_response += chunk["content"]
+                                yield {"type": "stream", "content": chunk["content"]}
+                    except Exception:
+                        pass
+                    tool_calls = []
+                else:
+                    yield {"type": "stream", "content": f"\n\nError: {error_msg}"}
+                    break
 
             if not tool_calls:
                 messages.append({"role": "assistant", "content": full_response})

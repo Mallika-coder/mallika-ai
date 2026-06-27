@@ -78,10 +78,16 @@ export function ChatWindow({ conversationId }: { conversationId?: string }) {
     if (!ws) return;
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      let data: any;
+      try {
+        data = JSON.parse(event.data);
+      } catch {
+        return;
+      }
 
       switch (data.type) {
         case "stream":
+          if (!data.content) break;
           setIsStreaming(true);
           setSuggestedFollowUps([]);
           setMessages((prev) => {
@@ -140,6 +146,20 @@ export function ChatWindow({ conversationId }: { conversationId?: string }) {
           });
           break;
 
+        case "stopped":
+          setIsStreaming(false);
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last?.id === "streaming") {
+              return [
+                ...prev.slice(0, -1),
+                { ...last, id: crypto.randomUUID() },
+              ];
+            }
+            return prev;
+          });
+          break;
+
         case "error":
           setIsStreaming(false);
           setMessages((prev) => [
@@ -147,7 +167,7 @@ export function ChatWindow({ conversationId }: { conversationId?: string }) {
             {
               id: crypto.randomUUID(),
               role: "assistant",
-              content: `Error: ${data.message}`,
+              content: `Error: ${data.message || "Something went wrong"}`,
               timestamp: new Date(),
             },
           ]);
@@ -166,9 +186,17 @@ export function ChatWindow({ conversationId }: { conversationId?: string }) {
           break;
 
         case "token_usage":
-        case "token_usage_total":
-          setTokenUsage(data.usage || data.total || null);
+        case "token_usage_total": {
+          const raw = data.usage || data.total;
+          if (raw) {
+            setTokenUsage({
+              total_tokens: raw.total_tokens || 0,
+              prompt_tokens: raw.prompt_tokens || 0,
+              completion_tokens: raw.completion_tokens || 0,
+            });
+          }
           break;
+        }
       }
     };
   }, [ws]);
@@ -382,10 +410,13 @@ export function ChatWindow({ conversationId }: { conversationId?: string }) {
         </div>
 
         {/* Token Usage Badge */}
-        {tokenUsage && (
+        {tokenUsage && tokenUsage.total_tokens > 0 && (
           <div className="flex justify-center pb-1">
             <span className="text-[10px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
-              Tokens: {tokenUsage.total_tokens.toLocaleString()} (prompt: {tokenUsage.prompt_tokens.toLocaleString()} + completion: {tokenUsage.completion_tokens.toLocaleString()})
+              Tokens: {(tokenUsage.total_tokens || 0).toLocaleString()}
+              {tokenUsage.prompt_tokens != null && tokenUsage.completion_tokens != null && (
+                <> (prompt: {tokenUsage.prompt_tokens.toLocaleString()} + completion: {tokenUsage.completion_tokens.toLocaleString()})</>
+              )}
             </span>
           </div>
         )}

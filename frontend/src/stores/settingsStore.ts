@@ -48,6 +48,15 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "mallika-settings",
+      version: 1,
+      migrate: (persistedState: any, version: number) => {
+        if (version === 0) {
+          if (persistedState.selectedModel === "llama-3.1-70b-versatile") {
+            persistedState.selectedModel = "llama-3.3-70b-versatile";
+          }
+        }
+        return persistedState;
+      },
     }
   )
 );

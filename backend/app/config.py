@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     debug: bool = True
 
     # Database
-    database_url: str = "postgresql+asyncpg://mallika:mallika_secret@localhost:5432/mallika_ai"
-    database_url_sync: str = "postgresql://mallika:mallika_secret@localhost:5432/mallika_ai"
+    database_url: str = "sqlite+aiosqlite:////tmp/mallika.db"
+    database_url_sync: str = "sqlite:////tmp/mallika.db"
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"

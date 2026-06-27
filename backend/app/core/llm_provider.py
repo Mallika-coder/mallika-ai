@@ -79,8 +79,8 @@ class BaseLLMProvider(ABC):
 
 
 class OpenAIProvider(BaseLLMProvider):
-    def __init__(self, model: str = "gpt-4o"):
-        self.client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
+    def __init__(self, model: str = "gpt-4o", api_key: Optional[str] = None):
+        self.client = openai.AsyncOpenAI(api_key=api_key or settings.openai_api_key)
         self.model = model
 
     async def generate(
@@ -140,8 +140,8 @@ class OpenAIProvider(BaseLLMProvider):
 
 
 class AnthropicProvider(BaseLLMProvider):
-    def __init__(self, model: str = "claude-sonnet-4-20250514"):
-        self.client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+    def __init__(self, model: str = "claude-sonnet-4-20250514", api_key: Optional[str] = None):
+        self.client = anthropic.AsyncAnthropic(api_key=api_key or settings.anthropic_api_key)
         self.model = model
 
     async def generate(
@@ -232,9 +232,9 @@ class AnthropicProvider(BaseLLMProvider):
 class GroqProvider(BaseLLMProvider):
     """Free cloud LLM via Groq (runs LLaMA 3, Mixtral at high speed)."""
 
-    def __init__(self, model: str = "llama-3.1-70b-versatile"):
+    def __init__(self, model: str = "llama-3.3-70b-versatile", api_key: Optional[str] = None):
         self.client = openai.AsyncOpenAI(
-            api_key=settings.groq_api_key,
+            api_key=api_key or settings.groq_api_key,
             base_url="https://api.groq.com/openai/v1",
         )
         self.model = model
@@ -305,14 +305,65 @@ class GroqProvider(BaseLLMProvider):
         return response.data[0].embedding
 
 
+class OllamaProvider(BaseLLMProvider):
+    """Local LLM via Ollama (runs models like LLaMA, Mistral, etc. locally)."""
+
+    def __init__(self, model: str = "llama3:8b", api_key: Optional[str] = None):
+        self.client = openai.AsyncOpenAI(
+            api_key="ollama",
+            base_url=f"{settings.ollama_base_url}/v1",
+        )
+        self.model = model
+
+    async def generate(
+        self,
+        messages,
+        tools=None,
+        stream=True,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        top_p: Optional[float] = None,
+    ):
+        kwargs = {"model": self.model, "messages": messages, "stream": stream}
+        if tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = "auto"
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+        if top_p is not None:
+            kwargs["top_p"] = top_p
+
+        response = await self.client.chat.completions.create(**kwargs)
+
+        if stream:
+            async for chunk in response:
+                if chunk.choices[0].delta.content:
+                    yield {"type": "text", "content": chunk.choices[0].delta.content}
+                if chunk.choices[0].delta.tool_calls:
+                    yield {"type": "tool_call", "content": chunk.choices[0].delta.tool_calls}
+        else:
+            msg = response.choices[0].message
+            yield {"type": "complete", "content": msg, "usage": None}
+
+    async def generate_embeddings(self, text):
+        oai = openai.AsyncOpenAI(api_key=settings.openai_api_key)
+        response = await oai.embeddings.create(
+            model="text-embedding-3-small", input=text
+        )
+        return response.data[0].embedding
+
+
 class LLMProviderFactory:
     @staticmethod
-    def create(provider: str, model: str = None) -> BaseLLMProvider:
+    def create(provider: str, model: str = None, api_key: Optional[str] = None) -> BaseLLMProvider:
         providers = {
-            "openai": lambda m: OpenAIProvider(m or "gpt-4o"),
-            "anthropic": lambda m: AnthropicProvider(m or "claude-sonnet-4-20250514"),
-            "groq": lambda m: GroqProvider(m or "llama-3.1-70b-versatile"),
+            "openai": lambda m, k: OpenAIProvider(m or "gpt-4o", api_key=k),
+            "anthropic": lambda m, k: AnthropicProvider(m or "claude-sonnet-4-20250514", api_key=k),
+            "groq": lambda m, k: GroqProvider(m or "llama-3.3-70b-versatile", api_key=k),
+            "ollama": lambda m, k: OllamaProvider(m or "llama3:8b", api_key=k),
         }
         if provider not in providers:
             raise ValueError(f"Unknown provider: {provider}. Available: {list(providers.keys())}")
-        return providers[provider](model)
+        return providers[provider](model, api_key)

@@ -7,10 +7,11 @@ import { InputBar } from "./InputBar";
 import { ThinkingIndicator } from "./ThinkingIndicator";
 import { ToolCallDisplay } from "./ToolCallDisplay";
 import { ArtifactPanel, extractArtifacts } from "./ArtifactPanel";
+import { DocumentPanel, extractDocuments } from "./DocumentPanel";
 import { ExportDropdown } from "./ExportDropdown";
 import { ShareModal } from "./ShareModal";
-import { Message, ToolCall, Artifact, TokenUsage } from "@/types/chat";
-import { PanelRightOpen, PanelRightClose, Download, Share2 } from "lucide-react";
+import { Message, ToolCall, Artifact, Document, TokenUsage } from "@/types/chat";
+import { PanelRightOpen, PanelRightClose, Download, Share2, FileText } from "lucide-react";
 import { KeyboardShortcutsModal } from "./KeyboardShortcutsModal";
 
 export function ChatWindow({ conversationId }: { conversationId?: string }) {
@@ -22,6 +23,9 @@ export function ChatWindow({ conversationId }: { conversationId?: string }) {
   const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null);
   const [showArtifactPanel, setShowArtifactPanel] = useState(false);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [showDocumentPanel, setShowDocumentPanel] = useState(false);
+  const [activeDocument, setActiveDocument] = useState<Document | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -40,6 +44,33 @@ export function ChatWindow({ conversationId }: { conversationId?: string }) {
     setArtifacts(allArtifacts);
     if (allArtifacts.length > 0 && !showArtifactPanel) {
       setShowArtifactPanel(true);
+    }
+  }, [messages]);
+
+  // Extract documents whenever messages change
+  useEffect(() => {
+    const allDocuments: Document[] = [];
+    messages.forEach((msg) => {
+      if (msg.role === "assistant") {
+        const extracted = extractDocuments(msg.content);
+        extracted.forEach((doc) => {
+          // Avoid duplicates by checking if a document with same title already exists
+          const existing = allDocuments.find((d) => d.title === doc.title);
+          if (existing) {
+            existing.content = doc.content;
+            existing.lastModified = new Date();
+          } else {
+            allDocuments.push(doc);
+          }
+        });
+      }
+    });
+    setDocuments(allDocuments);
+    if (allDocuments.length > 0) {
+      setActiveDocument(allDocuments[allDocuments.length - 1]);
+      if (!showDocumentPanel) {
+        setShowDocumentPanel(true);
+      }
     }
   }, [messages]);
 
@@ -256,6 +287,18 @@ export function ChatWindow({ conversationId }: { conversationId?: string }) {
                 </>
               )}
               <button
+                onClick={() => setShowDocumentPanel(!showDocumentPanel)}
+                className={`p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition ${
+                  documents.length > 0
+                    ? "text-purple-500"
+                    : "text-gray-400 opacity-50 cursor-not-allowed"
+                }`}
+                disabled={documents.length === 0}
+                title="Toggle canvas panel"
+              >
+                <FileText size={16} />
+              </button>
+              <button
                 onClick={() => setShowArtifactPanel(!showArtifactPanel)}
                 className={`p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition ${
                   artifacts.length > 0
@@ -360,6 +403,28 @@ export function ChatWindow({ conversationId }: { conversationId?: string }) {
         <ArtifactPanel
           artifacts={artifacts}
           onClose={() => setShowArtifactPanel(false)}
+        />
+      )}
+
+      {/* Document Panel */}
+      {showDocumentPanel && documents.length > 0 && activeDocument && (
+        <DocumentPanel
+          documents={documents}
+          activeDocument={activeDocument}
+          onClose={() => setShowDocumentPanel(false)}
+          onUpdateDocument={(id, content) => {
+            setDocuments((prev) =>
+              prev.map((d) =>
+                d.id === id ? { ...d, content, lastModified: new Date() } : d
+              )
+            );
+            setActiveDocument((prev) =>
+              prev && prev.id === id
+                ? { ...prev, content, lastModified: new Date() }
+                : prev
+            );
+          }}
+          onSelectDocument={(doc) => setActiveDocument(doc)}
         />
       )}
 

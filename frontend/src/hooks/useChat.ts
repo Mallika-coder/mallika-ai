@@ -4,7 +4,7 @@ import { useSettingsStore } from "@/stores/settingsStore";
 export function useChat(conversationId?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const { selectedModel, selectedProvider, temperature, maxTokens, topP, customInstructions } =
+  const { selectedModel, selectedProvider, temperature, maxTokens, topP, customInstructions, apiKeys } =
     useSettingsStore();
 
   useEffect(() => {
@@ -38,6 +38,9 @@ export function useChat(conversationId?: string) {
 
       const userId = localStorage.getItem("userId") || "anonymous";
 
+      // Only include api_keys if at least one key is set
+      const hasKeys = apiKeys.openai || apiKeys.anthropic || apiKeys.groq;
+
       wsRef.current.send(
         JSON.stringify({
           type: "message",
@@ -49,13 +52,14 @@ export function useChat(conversationId?: string) {
           max_tokens: maxTokens,
           top_p: topP,
           custom_instructions: customInstructions || undefined,
+          ...(hasKeys ? { api_keys: apiKeys } : {}),
           files: files
             ? files.map((f) => ({ name: f.name, type: f.type, size: f.size }))
             : [],
         })
       );
     },
-    [selectedModel, selectedProvider, temperature, maxTokens, topP, customInstructions]
+    [selectedModel, selectedProvider, temperature, maxTokens, topP, customInstructions, apiKeys]
   );
 
   const stopGeneration = useCallback(() => {

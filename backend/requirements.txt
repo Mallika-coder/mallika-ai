@@ -20,7 +20,13 @@ httpx
 # Search
 duckduckgo-search
 
+# File parsing (optional, gracefully handled if missing)
+python-docx
+openpyxl
+PyPDF2
+
 # Utilities
 aiofiles
 tiktoken
 numpy
+Pillow

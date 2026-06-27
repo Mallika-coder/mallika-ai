@@ -58,3 +58,10 @@ export interface Artifact {
   content: string;
   language?: string;
 }
+
+export interface Document {
+  id: string;
+  title: string;
+  content: string;
+  lastModified: Date;
+}

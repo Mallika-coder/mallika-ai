@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Plus, MessageSquare, Settings, Trash2, Search, FolderOpen, Sun, Moon } from "lucide-react";
+import { Plus, MessageSquare, Settings, Trash2, Search, FolderOpen, Sun, Moon, Brain } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ModelSelector } from "./ModelSelector";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -193,6 +193,13 @@ export function Sidebar() {
         >
           {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
           {theme === "dark" ? "Light Mode" : "Dark Mode"}
+        </button>
+        <button
+          onClick={() => router.push("/memories")}
+          className="flex items-center gap-2 text-sm text-gray-400 hover:text-white w-full px-2 py-1.5 rounded hover:bg-gray-800 transition"
+        >
+          <Brain size={16} />
+          Memory
         </button>
         <button
           onClick={() => router.push("/spaces")}

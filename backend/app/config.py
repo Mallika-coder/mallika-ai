@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     ollama_base_url: str = "http://localhost:11434"
 
+    # Image Generation
+    stability_api_key: str = ""
+
     # Search
     tavily_api_key: str = ""
     serpapi_key: str = ""

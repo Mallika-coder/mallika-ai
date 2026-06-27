@@ -106,7 +106,7 @@ class AgentExecutor:
                 elif chunk["type"] == "usage":
                     usage = chunk["content"]
                     self.total_tokens_used += usage.get("total_tokens", 0)
-                    yield {"type": "token_usage", "content": usage}
+                    yield {"type": "token_usage", "usage": usage}
 
             if not tool_calls:
                 messages.append({"role": "assistant", "content": full_response})
@@ -116,11 +116,11 @@ class AgentExecutor:
                 # Generate follow-up suggestions
                 follow_ups = await self._generate_follow_ups(user_message, full_response)
                 if follow_ups:
-                    yield {"type": "suggested_follow_ups", "content": follow_ups}
+                    yield {"type": "suggested_follow_ups", "suggestions": follow_ups}
 
                 yield {
                     "type": "token_usage_total",
-                    "content": {"total_tokens": self.total_tokens_used},
+                    "total": {"total_tokens": self.total_tokens_used},
                 }
                 break
 

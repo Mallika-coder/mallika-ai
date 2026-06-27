@@ -100,6 +100,26 @@ async def download_file(
     )
 
 
+@router.get("/generated/{filename}")
+async def serve_generated_image(filename: str):
+    filepath = os.path.join(settings.upload_dir, "generated", filename)
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="Generated image not found")
+
+    # Determine media type from extension
+    ext = os.path.splitext(filename)[1].lower()
+    media_types = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".svg": "image/svg+xml",
+        ".webp": "image/webp",
+    }
+    media_type = media_types.get(ext, "application/octet-stream")
+
+    return FileResponse(filepath, media_type=media_type)
+
+
 @router.delete("/{file_id}")
 async def delete_file(
     file_id: str,

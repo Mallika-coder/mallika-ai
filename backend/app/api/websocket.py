@@ -1,3 +1,4 @@
+import asyncio
 import json
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import Dict
@@ -18,13 +19,29 @@ from app.models.user import User
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
+        self._abort_events: Dict[str, asyncio.Event] = {}
 
     async def connect(self, websocket: WebSocket, conversation_id: str):
         await websocket.accept()
         self.active_connections[conversation_id] = websocket
+        self._abort_events[conversation_id] = asyncio.Event()
 
     def disconnect(self, conversation_id: str):
         self.active_connections.pop(conversation_id, None)
+        self._abort_events.pop(conversation_id, None)
+
+    def get_abort_event(self, conversation_id: str) -> asyncio.Event:
+        return self._abort_events.get(conversation_id)
+
+    def request_abort(self, conversation_id: str):
+        event = self._abort_events.get(conversation_id)
+        if event:
+            event.set()
+
+    def reset_abort(self, conversation_id: str):
+        event = self._abort_events.get(conversation_id)
+        if event:
+            event.clear()
 
     async def send_event(self, conversation_id: str, event: Dict):
         ws = self.active_connections.get(conversation_id)
@@ -99,8 +116,16 @@ async def websocket_endpoint(websocket: WebSocket, conversation_id: str):
                 max_tokens = data.get("max_tokens")
                 top_p = data.get("top_p")
 
+                # User-provided API keys (override server defaults)
+                api_keys = data.get("api_keys", {})
+                user_api_key = api_keys.get(provider) if api_keys else None
+
+                # Reset abort state before starting a new generation
+                manager.reset_abort(conversation_id)
+                abort_event = manager.get_abort_event(conversation_id)
+
                 async with async_session() as db:
-                    llm = LLMProviderFactory.create(provider, model)
+                    llm = LLMProviderFactory.create(provider, model, api_key=user_api_key)
                     memory = MemoryManager(db, llm, user_id)
                     tools = get_all_tools()
 
@@ -127,8 +152,16 @@ async def websocket_endpoint(websocket: WebSocket, conversation_id: str):
                     # Check if we need to auto-generate a title
                     is_first = await _is_first_message(db, conversation_id)
 
+                    aborted = False
                     async for event in agent.execute(user_message, conversation_id, files or None):
+                        if abort_event and abort_event.is_set():
+                            aborted = True
+                            break
                         await manager.send_event(conversation_id, event)
+
+                    if aborted:
+                        await manager.send_event(conversation_id, {"type": "stopped"})
+                        continue
 
                     # Auto-generate title after first message
                     if is_first:
@@ -148,6 +181,7 @@ async def websocket_endpoint(websocket: WebSocket, conversation_id: str):
                     await manager.send_event(conversation_id, {"type": "done"})
 
             elif data["type"] == "stop":
+                manager.request_abort(conversation_id)
                 await manager.send_event(conversation_id, {"type": "stopped"})
 
     except WebSocketDisconnect:

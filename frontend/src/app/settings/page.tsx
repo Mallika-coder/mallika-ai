@@ -21,13 +21,9 @@ export default function SettingsPage() {
     setTopP,
     customInstructions,
     setCustomInstructions,
+    apiKeys,
+    setApiKeys,
   } = useSettingsStore();
-
-  const [apiKeys, setApiKeys] = useState({
-    openai: "",
-    anthropic: "",
-    tavily: "",
-  });
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [localInstructions, setLocalInstructions] = useState(customInstructions);
@@ -212,6 +208,7 @@ export default function SettingsPage() {
                 >
                   <option value="openai">OpenAI</option>
                   <option value="anthropic">Anthropic</option>
+                  <option value="groq">Groq (Free)</option>
                   <option value="ollama">Ollama (Local)</option>
                 </select>
               </div>
@@ -232,6 +229,14 @@ export default function SettingsPage() {
                     <>
                       <option value="claude-sonnet-4-20250514">Claude Sonnet</option>
                       <option value="claude-haiku-4-5-20251001">Claude Haiku</option>
+                    </>
+                  )}
+                  {selectedProvider === "groq" && (
+                    <>
+                      <option value="llama-3.3-70b-versatile">LLaMA 3.3 70B Versatile</option>
+                      <option value="llama-3.1-70b-versatile">LLaMA 3.1 70B Versatile</option>
+                      <option value="llama-3.2-90b-vision-preview">LLaMA 3.2 90B Vision</option>
+                      <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
                     </>
                   )}
                   {selectedProvider === "ollama" && (
@@ -275,7 +280,7 @@ export default function SettingsPage() {
                 <input
                   type="password"
                   value={apiKeys.openai}
-                  onChange={(e) => setApiKeys({ ...apiKeys, openai: e.target.value })}
+                  onChange={(e) => setApiKeys({ openai: e.target.value })}
                   placeholder="sk-..."
                   className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 dark:text-white"
                 />
@@ -285,8 +290,18 @@ export default function SettingsPage() {
                 <input
                   type="password"
                   value={apiKeys.anthropic}
-                  onChange={(e) => setApiKeys({ ...apiKeys, anthropic: e.target.value })}
+                  onChange={(e) => setApiKeys({ anthropic: e.target.value })}
                   placeholder="sk-ant-..."
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium dark:text-gray-300 mb-1">Groq API Key</label>
+                <input
+                  type="password"
+                  value={apiKeys.groq}
+                  onChange={(e) => setApiKeys({ groq: e.target.value })}
+                  placeholder="gsk_..."
                   className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 dark:text-white"
                 />
               </div>

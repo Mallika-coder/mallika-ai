@@ -91,6 +91,7 @@ class AgentExecutor:
                             if hasattr(tc, "id") and tc.id:
                                 current_tool_call = {
                                     "id": tc.id,
+                                    "type": "function",
                                     "function": {
                                         "name": tc.function.name if hasattr(tc, "function") else "",
                                         "arguments": "",
@@ -103,6 +104,8 @@ class AgentExecutor:
                                 if tc.function.arguments:
                                     current_tool_call["function"]["arguments"] += tc.function.arguments
                             elif isinstance(tc, dict):
+                                if "type" not in tc:
+                                    tc["type"] = "function"
                                 tool_calls.append(tc)
                     elif chunk["type"] == "usage":
                         usage = chunk["content"]
@@ -144,6 +147,11 @@ class AgentExecutor:
                     "total": {"total_tokens": self.total_tokens_used},
                 }
                 break
+
+            # Ensure each tool_call has the required "type" field for Groq/OpenAI
+            for tc in tool_calls:
+                if "type" not in tc:
+                    tc["type"] = "function"
 
             messages.append({
                 "role": "assistant",

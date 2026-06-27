@@ -5,6 +5,8 @@ import uvicorn
 
 from app.config import settings
 from app.api.routes import chat, conversations, files, spaces, auth, models, search
+from app.api.routes import settings as settings_routes
+from app.api.routes import shared, messages
 from app.api.websocket import websocket_endpoint
 from app.models.database import init_db
 
@@ -32,6 +34,9 @@ app.include_router(files.router, prefix="/api/files", tags=["files"])
 app.include_router(spaces.router, prefix="/api/spaces", tags=["spaces"])
 app.include_router(models.router, prefix="/api/models", tags=["models"])
 app.include_router(search.router, prefix="/api/search", tags=["search"])
+app.include_router(settings_routes.router, prefix="/api/settings", tags=["settings"])
+app.include_router(shared.router, prefix="/api/shared", tags=["shared"])
+app.include_router(messages.router, prefix="/api/messages", tags=["messages"])
 
 
 @app.websocket("/ws/chat/{conversation_id}")

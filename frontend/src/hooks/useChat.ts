@@ -4,7 +4,8 @@ import { useSettingsStore } from "@/stores/settingsStore";
 export function useChat(conversationId?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const { selectedModel, selectedProvider } = useSettingsStore();
+  const { selectedModel, selectedProvider, temperature, maxTokens, topP, customInstructions } =
+    useSettingsStore();
 
   useEffect(() => {
     const id = conversationId || crypto.randomUUID();
@@ -44,13 +45,17 @@ export function useChat(conversationId?: string) {
           model: selectedModel,
           provider: selectedProvider,
           user_id: userId,
+          temperature,
+          max_tokens: maxTokens,
+          top_p: topP,
+          custom_instructions: customInstructions || undefined,
           files: files
             ? files.map((f) => ({ name: f.name, type: f.type, size: f.size }))
             : [],
         })
       );
     },
-    [selectedModel, selectedProvider]
+    [selectedModel, selectedProvider, temperature, maxTokens, topP, customInstructions]
   );
 
   const stopGeneration = useCallback(() => {

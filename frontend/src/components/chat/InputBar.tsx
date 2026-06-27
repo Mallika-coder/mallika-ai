@@ -33,6 +33,11 @@ export function InputBar({ onSend, onStop, isStreaming, disabled }: InputBarProp
       e.preventDefault();
       handleSubmit();
     }
+    // Ctrl+Enter or Cmd+Enter also sends
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      handleSubmit();
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

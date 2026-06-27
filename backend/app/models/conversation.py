@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, DateTime, ForeignKey, Text
+from sqlalchemy import String, DateTime, ForeignKey, Text, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.database import Base
@@ -15,6 +15,8 @@ class Conversation(Base):
     model: Mapped[str] = mapped_column(String(100), default="gpt-4o")
     provider: Mapped[str] = mapped_column(String(50), default="openai")
     space_id: Mapped[str | None] = mapped_column(String, ForeignKey("spaces.id"), nullable=True)
+    is_public: Mapped[bool] = mapped_column(Boolean, default=False)
+    share_slug: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

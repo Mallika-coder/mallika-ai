@@ -18,6 +18,7 @@ class Message(Base):
     files: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     tokens_used: Mapped[int | None] = mapped_column(nullable=True)
     model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    feedback: Mapped[str | None] = mapped_column(String(10), nullable=True)  # "up" or "down"
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     conversation = relationship("Conversation", back_populates="messages")

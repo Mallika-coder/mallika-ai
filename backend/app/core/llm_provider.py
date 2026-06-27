@@ -1,15 +1,35 @@
+import base64
+import os
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator, List, Dict, Any
+from typing import AsyncGenerator, List, Dict, Any, Optional
 import openai
 import anthropic
 
 from app.config import settings
 
 
+VISION_MODELS = {
+    "llama-3.2-90b-vision-preview",
+    "llama-3.2-11b-vision-preview",
+    "gpt-4o",
+    "gpt-4-vision-preview",
+    "claude-sonnet-4-20250514",
+    "claude-3-5-sonnet-20241022",
+}
+
+
 class BaseLLMProvider(ABC):
+    model: str = ""
+
     @abstractmethod
     async def generate(
-        self, messages: List[Dict], tools: List[Dict] = None, stream: bool = True
+        self,
+        messages: List[Dict],
+        tools: List[Dict] = None,
+        stream: bool = True,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        top_p: Optional[float] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         pass
 
@@ -17,17 +37,71 @@ class BaseLLMProvider(ABC):
     async def generate_embeddings(self, text: str) -> List[float]:
         pass
 
+    def supports_vision(self) -> bool:
+        """Return True if the current model supports image/vision inputs."""
+        return self.model in VISION_MODELS
+
+    @staticmethod
+    def encode_image_to_base64(file_path: str) -> str:
+        """Read an image file and return its base64 encoding."""
+        with open(file_path, "rb") as f:
+            return base64.b64encode(f.read()).decode("utf-8")
+
+    @staticmethod
+    def get_mime_type(file_path: str) -> str:
+        """Determine MIME type from file extension."""
+        ext = os.path.splitext(file_path)[1].lower()
+        mime_map = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".gif": "image/gif",
+            ".webp": "image/webp",
+        }
+        return mime_map.get(ext, "image/png")
+
+    def build_vision_message(self, text: str, image_path: str) -> Dict:
+        """Build a multimodal message with text and image for vision models."""
+        b64_image = self.encode_image_to_base64(image_path)
+        mime_type = self.get_mime_type(image_path)
+        return {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": text},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{mime_type};base64,{b64_image}",
+                    },
+                },
+            ],
+        }
+
 
 class OpenAIProvider(BaseLLMProvider):
     def __init__(self, model: str = "gpt-4o"):
         self.client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
         self.model = model
 
-    async def generate(self, messages, tools=None, stream=True):
+    async def generate(
+        self,
+        messages,
+        tools=None,
+        stream=True,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        top_p: Optional[float] = None,
+    ):
         kwargs = {"model": self.model, "messages": messages, "stream": stream}
         if tools:
             kwargs["tools"] = tools
             kwargs["tool_choice"] = "auto"
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+        if top_p is not None:
+            kwargs["top_p"] = top_p
 
         response = await self.client.chat.completions.create(**kwargs)
 
@@ -37,8 +111,26 @@ class OpenAIProvider(BaseLLMProvider):
                     yield {"type": "text", "content": chunk.choices[0].delta.content}
                 if chunk.choices[0].delta.tool_calls:
                     yield {"type": "tool_call", "content": chunk.choices[0].delta.tool_calls}
+                # Track usage from final chunk
+                if hasattr(chunk, "usage") and chunk.usage:
+                    yield {
+                        "type": "usage",
+                        "content": {
+                            "prompt_tokens": chunk.usage.prompt_tokens,
+                            "completion_tokens": chunk.usage.completion_tokens,
+                            "total_tokens": chunk.usage.total_tokens,
+                        },
+                    }
         else:
-            yield {"type": "complete", "content": response.choices[0].message}
+            msg = response.choices[0].message
+            usage_data = None
+            if hasattr(response, "usage") and response.usage:
+                usage_data = {
+                    "prompt_tokens": response.usage.prompt_tokens,
+                    "completion_tokens": response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens,
+                }
+            yield {"type": "complete", "content": msg, "usage": usage_data}
 
     async def generate_embeddings(self, text):
         response = await self.client.embeddings.create(
@@ -52,7 +144,15 @@ class AnthropicProvider(BaseLLMProvider):
         self.client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
         self.model = model
 
-    async def generate(self, messages, tools=None, stream=True):
+    async def generate(
+        self,
+        messages,
+        tools=None,
+        stream=True,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        top_p: Optional[float] = None,
+    ):
         system_msg = ""
         filtered_messages = []
         for msg in messages:
@@ -63,7 +163,7 @@ class AnthropicProvider(BaseLLMProvider):
 
         kwargs = {
             "model": self.model,
-            "max_tokens": 8192,
+            "max_tokens": max_tokens or 8192,
             "system": system_msg,
             "messages": filtered_messages,
         }
@@ -77,6 +177,10 @@ class AnthropicProvider(BaseLLMProvider):
                     "input_schema": func["parameters"],
                 })
             kwargs["tools"] = anthropic_tools
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        if top_p is not None:
+            kwargs["top_p"] = top_p
 
         if stream:
             async with self.client.messages.stream(**kwargs) as stream_response:
@@ -96,9 +200,26 @@ class AnthropicProvider(BaseLLMProvider):
                                     },
                                 }],
                             }
+                    elif event.type == "message_delta":
+                        if hasattr(event, "usage") and event.usage:
+                            yield {
+                                "type": "usage",
+                                "content": {
+                                    "prompt_tokens": getattr(event.usage, "input_tokens", 0),
+                                    "completion_tokens": getattr(event.usage, "output_tokens", 0),
+                                    "total_tokens": getattr(event.usage, "input_tokens", 0) + getattr(event.usage, "output_tokens", 0),
+                                },
+                            }
         else:
             response = await self.client.messages.create(**kwargs)
-            yield {"type": "complete", "content": response}
+            usage_data = None
+            if hasattr(response, "usage") and response.usage:
+                usage_data = {
+                    "prompt_tokens": response.usage.input_tokens,
+                    "completion_tokens": response.usage.output_tokens,
+                    "total_tokens": response.usage.input_tokens + response.usage.output_tokens,
+                }
+            yield {"type": "complete", "content": response, "usage": usage_data}
 
     async def generate_embeddings(self, text):
         oai = openai.AsyncOpenAI(api_key=settings.openai_api_key)
@@ -118,11 +239,35 @@ class GroqProvider(BaseLLMProvider):
         )
         self.model = model
 
-    async def generate(self, messages, tools=None, stream=True):
-        kwargs = {"model": self.model, "messages": messages, "stream": stream}
+    async def generate(
+        self,
+        messages,
+        tools=None,
+        stream=True,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        top_p: Optional[float] = None,
+    ):
+        # If vision is needed and current model doesn't support it, switch
+        has_images = any(
+            isinstance(msg.get("content"), list)
+            for msg in messages
+            if isinstance(msg, dict)
+        )
+        model = self.model
+        if has_images and model not in VISION_MODELS:
+            model = "llama-3.2-90b-vision-preview"
+
+        kwargs = {"model": model, "messages": messages, "stream": stream}
         if tools:
             kwargs["tools"] = tools
             kwargs["tool_choice"] = "auto"
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+        if top_p is not None:
+            kwargs["top_p"] = top_p
 
         response = await self.client.chat.completions.create(**kwargs)
 
@@ -132,8 +277,25 @@ class GroqProvider(BaseLLMProvider):
                     yield {"type": "text", "content": chunk.choices[0].delta.content}
                 if chunk.choices[0].delta.tool_calls:
                     yield {"type": "tool_call", "content": chunk.choices[0].delta.tool_calls}
+                if hasattr(chunk, "usage") and chunk.usage:
+                    yield {
+                        "type": "usage",
+                        "content": {
+                            "prompt_tokens": chunk.usage.prompt_tokens,
+                            "completion_tokens": chunk.usage.completion_tokens,
+                            "total_tokens": chunk.usage.total_tokens,
+                        },
+                    }
         else:
-            yield {"type": "complete", "content": response.choices[0].message}
+            msg = response.choices[0].message
+            usage_data = None
+            if hasattr(response, "usage") and response.usage:
+                usage_data = {
+                    "prompt_tokens": response.usage.prompt_tokens,
+                    "completion_tokens": response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens,
+                }
+            yield {"type": "complete", "content": msg, "usage": usage_data}
 
     async def generate_embeddings(self, text):
         oai = openai.AsyncOpenAI(api_key=settings.openai_api_key)

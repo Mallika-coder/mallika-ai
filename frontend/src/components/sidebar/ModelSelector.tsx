@@ -3,7 +3,7 @@
 import { useSettingsStore } from "@/stores/settingsStore";
 
 const MODELS = [
-  { id: "llama-3.1-70b-versatile", name: "LLaMA 3.1 70B (Free)", provider: "groq", icon: "⚡" },
+  { id: "llama-3.3-70b-versatile", name: "LLaMA 3.3 70B (Free)", provider: "groq", icon: "⚡" },
   { id: "llama-3.1-8b-instant", name: "LLaMA 3.1 8B (Free)", provider: "groq", icon: "⚡" },
   { id: "mixtral-8x7b-32768", name: "Mixtral 8x7B (Free)", provider: "groq", icon: "⚡" },
   { id: "gpt-4o", name: "GPT-4o", provider: "openai", icon: "🟢" },

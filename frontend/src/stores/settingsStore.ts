@@ -29,7 +29,7 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set, get) => ({
-      selectedModel: "llama-3.1-70b-versatile",
+      selectedModel: "llama-3.3-70b-versatile",
       selectedProvider: "groq",
       theme: "dark",
       temperature: 0.7,

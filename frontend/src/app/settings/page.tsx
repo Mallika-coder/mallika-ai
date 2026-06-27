@@ -234,7 +234,7 @@ export default function SettingsPage() {
                   {selectedProvider === "groq" && (
                     <>
                       <option value="llama-3.3-70b-versatile">LLaMA 3.3 70B Versatile</option>
-                      <option value="llama-3.1-70b-versatile">LLaMA 3.1 70B Versatile</option>
+                      <option value="llama-3.1-70b-specdec">LLaMA 3.1 70B Versatile</option>
                       <option value="llama-3.2-90b-vision-preview">LLaMA 3.2 90B Vision</option>
                       <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
                     </>

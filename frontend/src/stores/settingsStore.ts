@@ -21,8 +21,8 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      selectedModel: "gpt-4o",
-      selectedProvider: "openai",
+      selectedModel: "llama-3.1-70b-versatile",
+      selectedProvider: "groq",
       theme: "dark",
       temperature: 0.7,
       maxTokens: 4096,

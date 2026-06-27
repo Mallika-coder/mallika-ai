@@ -90,8 +90,8 @@ async def websocket_endpoint(websocket: WebSocket, conversation_id: str):
             if data["type"] == "message":
                 user_message = data["content"]
                 files = data.get("files", [])
-                model = data.get("model", "gpt-4o")
-                provider = data.get("provider", "openai")
+                model = data.get("model", "llama-3.1-70b-versatile")
+                provider = data.get("provider", "groq")
                 user_id = data.get("user_id", "anonymous")
 
                 # Model parameters from client

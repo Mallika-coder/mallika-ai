@@ -23,8 +23,8 @@ router = APIRouter()
 async def send_message(
     message: str = Form(...),
     conversation_id: str = Form(...),
-    model: str = Form("gpt-4o"),
-    provider: str = Form("openai"),
+    model: str = Form("llama-3.1-70b-versatile"),
+    provider: str = Form("groq"),
     files: Optional[List[UploadFile]] = File(None),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -67,8 +67,8 @@ async def send_message(
 @router.post("/quick")
 async def quick_chat(
     message: str = Form(...),
-    model: str = Form("gpt-4o"),
-    provider: str = Form("openai"),
+    model: str = Form("llama-3.1-70b-versatile"),
+    provider: str = Form("groq"),
 ):
     """Quick chat without auth - for extension quick queries."""
     llm = LLMProviderFactory.create(provider, model)

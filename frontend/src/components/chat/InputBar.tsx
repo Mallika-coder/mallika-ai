@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, KeyboardEvent } from "react";
-import { Paperclip, Send, Square } from "lucide-react";
+import { Paperclip, Send, Square, Mic, MicOff } from "lucide-react";
 
 interface InputBarProps {
   onSend: (content: string, files?: File[]) => void;
@@ -13,8 +13,10 @@ interface InputBarProps {
 export function InputBar({ onSend, onStop, isStreaming, disabled }: InputBarProps) {
   const [input, setInput] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   const handleSubmit = () => {
     if (!input.trim() && files.length === 0) return;
@@ -41,6 +43,58 @@ export function InputBar({ onSend, onStop, isStreaming, disabled }: InputBarProp
 
   const removeFile = (index: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const toggleVoice = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
+  const startRecording = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Voice input is not supported in this browser. Use Chrome or Edge.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event: any) => {
+      let transcript = "";
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setInput(transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognition.start();
+    recognitionRef.current = recognition;
+    setIsRecording(true);
+  };
+
+  const stopRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setIsRecording(false);
   };
 
   return (
@@ -73,6 +127,18 @@ export function InputBar({ onSend, onStop, isStreaming, disabled }: InputBarProp
           <Paperclip size={20} />
         </button>
 
+        <button
+          onClick={toggleVoice}
+          className={`p-2 rounded-lg transition ${
+            isRecording
+              ? "bg-red-100 dark:bg-red-900/30 text-red-500 animate-pulse"
+              : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          }`}
+          title={isRecording ? "Stop recording" : "Voice input"}
+        >
+          {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+        </button>
+
         <input
           ref={fileInputRef}
           type="file"
@@ -88,9 +154,13 @@ export function InputBar({ onSend, onStop, isStreaming, disabled }: InputBarProp
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask anything... (Shift+Enter for new line)"
+            placeholder={isRecording ? "Listening... speak now" : "Ask anything... (Shift+Enter for new line)"}
             rows={1}
-            className="w-full resize-none rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white max-h-[200px] overflow-y-auto"
+            className={`w-full resize-none rounded-xl border bg-gray-50 dark:bg-gray-900 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white max-h-[200px] overflow-y-auto ${
+              isRecording
+                ? "border-red-400 dark:border-red-500"
+                : "border-gray-300 dark:border-gray-600"
+            }`}
             style={{ minHeight: "44px" }}
             onInput={(e) => {
               const target = e.target as HTMLTextAreaElement;

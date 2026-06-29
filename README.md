@@ -2,6 +2,8 @@
 
 A full-featured AI assistant platform with deep reasoning, tool usage, file analysis, code execution, web search, RAG-based knowledge retrieval, and conversation memory.
 
+##LIVE URL- https://frontend-mauve-nine-89.vercel.app/
+
 ## Features
 
 - **Multi-Model Support** - Switch between GPT-4o, Claude, LLaMA 3, Mistral
